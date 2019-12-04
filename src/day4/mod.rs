@@ -63,7 +63,6 @@ fn d3p1(input: &Password) -> usize {
     let mut passwords = 0;
     for password in input.start..input.end {
         if Password::six_digits(password)
-            && input.within_range(password)
             && Password::two_adjacent_numbers(password)
             && Password::increasing_numbers(password)
         {
