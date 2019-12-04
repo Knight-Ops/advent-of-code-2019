@@ -128,7 +128,7 @@ fn d3p1(input: &WireHarness) -> usize {
     let mut min_distance = 0xFFFFFFFF;
     first_wire_map.intersection(&second_wire_map).for_each(|x| {
         if x.0.abs() + x.1.abs() < min_distance {
-            println!("({}, {}) = {}", x.0, x.1, x.0.abs() + x.1.abs());
+            // println!("({}, {}) = {}", x.0, x.1, x.0.abs() + x.1.abs());
             min_distance = x.0.abs() + x.1.abs();
         }
     });
@@ -139,7 +139,7 @@ fn d3p1(input: &WireHarness) -> usize {
 fn d3p2(input: &WireHarness) -> usize {
     let mut first_wire_map: HashMap<(isize, isize), isize> = HashMap::new();
     let mut second_wire_map: HashMap<(isize, isize), isize> = HashMap::new();
-    // let mut intersections: Vec<(isize, isize)> = vec![];
+
     let mut x_cord = 0;
     let mut y_cord = 0;
     let mut total_traveled = 0;
