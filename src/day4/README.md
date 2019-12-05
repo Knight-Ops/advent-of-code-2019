@@ -15,3 +15,5 @@ Day 4 - Part 2 - adding : 1104
 Day 4 - Part 2 - iter : 1104
         generator: 19.732µs,
         runner: 16.599419ms
+
+# Benchmarks
