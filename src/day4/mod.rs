@@ -23,6 +23,7 @@ impl Password {
         }
     }
 
+    #[allow(dead_code)]
     fn within_range(&self, input: usize) -> bool {
         if input < self.end && input > self.start {
             true
@@ -42,11 +43,11 @@ impl Password {
     }
 
     fn only_two_numbers(input: usize) -> bool {
-        let mut ret_val = true;
+        let mut ret_val = false;
         let string = input.to_string();
         string.chars().for_each(|x| {
-            if string.matches(x).count() > 2 {
-                ret_val = false;
+            if string.matches(x).count() == 2 {
+                ret_val = true;
             }
         });
 
@@ -54,6 +55,7 @@ impl Password {
     }
 
     /// Parallel implementation of searching for two numbers, ends up being slower or equal in time currently
+    #[allow(dead_code)]
     fn par_only_two_numbers(input: usize) -> bool {
         let ret_val = Arc::new(AtomicBool::new(false));
         let string = input.to_string();
