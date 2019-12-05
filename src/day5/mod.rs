@@ -44,41 +44,41 @@ impl CPU {
         loop {
             match self.parse()? {
                 Instruction::Add(left, right, location) => {
-                    //println!("Add : {} + {} @ {}", left, right, location);
+                    debug_print!("Add : {} + {} @ {}", left, right, location);
                     self.last_instruction = Some(Instruction::Add(left, right, location));
                     self.set_memory(location as usize, left + right);
                 }
                 Instruction::Mult(left, right, location) => {
-                    //println!("Mult : {} * {} @ {}", left, right, location);
+                    debug_print!("Mult : {} * {} @ {}", left, right, location);
                     self.last_instruction = Some(Instruction::Mult(left, right, location));
                     self.set_memory(location as usize, left * right);
                 }
                 Instruction::In(location) => {
-                    //println!("In : @ {}", location);
+                    debug_print!("In : @ {}", location);
                     self.last_instruction = Some(Instruction::In(location));
                     self.set_memory(location as usize, get_input()?);
                 }
                 Instruction::Out(value) => {
-                    //println!("Out : {}", value);
+                    debug_print!("Out : {}", value);
                     self.last_instruction = Some(Instruction::Out(value));
                     println!("{}", value as usize);
                 }
                 Instruction::JumpIfTrue(value, new_ip) => {
-                    //println!("JIT : {} to {}", value, new_ip);
+                    debug_print!("JIT : {} to {}", value, new_ip);
                     self.last_instruction = Some(Instruction::JumpIfTrue(value, new_ip));
                     if value != 0 {
                         self.instruction_pointer = new_ip as usize;
                     }
                 }
                 Instruction::JumpIfFalse(value, new_ip) => {
-                    //println!("JIF : {} to {}", value, new_ip);
+                    debug_print!("JIF : {} to {}", value, new_ip);
                     self.last_instruction = Some(Instruction::JumpIfFalse(value, new_ip));
                     if value == 0 {
                         self.instruction_pointer = new_ip as usize;
                     }
                 }
                 Instruction::LessThan(left, right, location) => {
-                    //println!("LT : {} < {} @ {}", left, right, location);
+                    debug_print!("LT : {} < {} @ {}", left, right, location);
                     self.last_instruction = Some(Instruction::LessThan(left, right, location));
                     if left < right {
                         self.set_memory(location as usize, 1);
@@ -87,7 +87,7 @@ impl CPU {
                     }
                 }
                 Instruction::Equal(left, right, location) => {
-                    //println!("EQ : {} < {} @ {}", left, right, location);
+                    debug_print!("EQ : {} < {} @ {}", left, right, location);
                     self.last_instruction = Some(Instruction::Equal(left, right, location));
                     if left == right {
                         self.set_memory(location as usize, 1);
@@ -96,6 +96,7 @@ impl CPU {
                     }
                 }
                 Instruction::Halt => {
+                    debug_print!("Halt");
                     self.last_instruction = Some(Instruction::Halt);
                     return Ok(());
                 }

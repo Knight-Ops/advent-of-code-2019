@@ -10,3 +10,8 @@ edition = "2018"
 aoc-runner = "0.2.2"
 aoc-runner-derive = "0.2.2"
 rayon = "1.2"
+
+[features]
+# Change the default flags to "debugging" and we compile in all of our debugging output
+default = []
+debugging = []
