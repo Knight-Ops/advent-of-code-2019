@@ -1,3 +1,9 @@
+use rayon::prelude::*;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+
 #[derive(Debug, Copy, Clone)]
 struct Password {
     start: usize,
@@ -35,6 +41,34 @@ impl Password {
         false
     }
 
+    fn only_two_numbers(input: usize) -> bool {
+        let mut ret_val = true;
+        let string = input.to_string();
+        string.chars().for_each(|x| {
+            if string.matches(x).count() > 2 {
+                ret_val = false;
+            }
+        });
+
+        ret_val
+    }
+
+    /// Parallel implementation of searching for two numbers, ends up being slower or equal in time currently
+    fn par_only_two_numbers(input: usize) -> bool {
+        let ret_val = Arc::new(AtomicBool::new(false));
+        let string = input.to_string();
+        string.par_chars().for_each(|x| {
+            if ret_val.load(Ordering::SeqCst) == true {
+                return;
+            }
+            if string.matches(x).count() == 2 {
+                ret_val.store(true, Ordering::SeqCst);
+            }
+        });
+
+        ret_val.load(Ordering::SeqCst)
+    }
+
     fn increasing_numbers(input: usize) -> bool {
         let mut last_digit = 0;
         let mut always_increasing = true;
@@ -58,13 +92,13 @@ fn process_input(input: &str) -> Password {
     )
 }
 
-#[aoc(day4, part1)]
-fn d3p1(input: &Password) -> usize {
+#[aoc(day4, part1, adding)]
+fn d4p1(input: &Password) -> usize {
     let mut passwords = 0;
     for password in input.start..input.end {
         if Password::six_digits(password)
-            && Password::two_adjacent_numbers(password)
             && Password::increasing_numbers(password)
+            && Password::two_adjacent_numbers(password)
         {
             passwords += 1;
         }
@@ -72,9 +106,44 @@ fn d3p1(input: &Password) -> usize {
     passwords
 }
 
-#[aoc(day4, part2)]
-fn d3p2(input: &Password) -> usize {
-    0
+#[aoc(day4, part1, iter)]
+fn d4p1_iter(input: &Password) -> usize {
+    (input.start..input.end)
+        .into_par_iter()
+        .filter(|x| {
+            Password::six_digits(*x)
+                && Password::increasing_numbers(*x)
+                && Password::two_adjacent_numbers(*x)
+        })
+        .collect::<Vec<usize>>()
+        .len()
+}
+
+#[aoc(day4, part2, adding)]
+fn d4p2(input: &Password) -> usize {
+    let mut passwords = 0;
+    for password in input.start..input.end {
+        if Password::six_digits(password)
+            && Password::increasing_numbers(password)
+            && Password::only_two_numbers(password)
+        {
+            passwords += 1;
+        }
+    }
+    passwords
+}
+
+#[aoc(day4, part2, iter)]
+fn d4p2_iter(input: &Password) -> usize {
+    (input.start..input.end)
+        .into_par_iter()
+        .filter(|x| {
+            Password::six_digits(*x)
+                && Password::increasing_numbers(*x)
+                && Password::only_two_numbers(*x)
+        })
+        .collect::<Vec<usize>>()
+        .len()
 }
 
 #[cfg(test)]
@@ -116,8 +185,36 @@ mod tests {
     }
 
     #[test]
-    fn test4() {}
+    fn test4() {
+        let number = 112233;
+        assert_eq!(
+            Password::six_digits(number)
+                && Password::increasing_numbers(number)
+                && Password::only_two_numbers(number),
+            true
+        )
+    }
 
     #[test]
-    fn test5() {}
+    #[should_panic]
+    fn test5() {
+        let number = 123444;
+        assert_eq!(
+            Password::six_digits(number)
+                && Password::increasing_numbers(number)
+                && Password::only_two_numbers(number),
+            true
+        )
+    }
+
+    #[test]
+    fn test6() {
+        let number = 111122;
+        assert_eq!(
+            Password::six_digits(number)
+                && Password::increasing_numbers(number)
+                && Password::only_two_numbers(number),
+            true
+        )
+    }
 }
