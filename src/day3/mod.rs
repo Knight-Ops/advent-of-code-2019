@@ -152,10 +152,10 @@ fn d3p2(input: &WireHarness) -> usize {
                     y_cord += 1;
                     total_traveled += 1;
                     match first_wire_map.entry((x_cord, y_cord)) {
-                        Entry::Occupied(o) => {}
                         Entry::Vacant(o) => {
                             o.insert(total_traveled);
                         }
+                        _ => {}
                     }
                 }
             }
@@ -164,10 +164,10 @@ fn d3p2(input: &WireHarness) -> usize {
                     y_cord -= 1;
                     total_traveled += 1;
                     match first_wire_map.entry((x_cord, y_cord)) {
-                        Entry::Occupied(o) => {}
                         Entry::Vacant(o) => {
                             o.insert(total_traveled);
                         }
+                        _ => {}
                     }
                 }
             }
@@ -176,10 +176,10 @@ fn d3p2(input: &WireHarness) -> usize {
                     x_cord -= 1;
                     total_traveled += 1;
                     match first_wire_map.entry((x_cord, y_cord)) {
-                        Entry::Occupied(o) => {}
                         Entry::Vacant(o) => {
                             o.insert(total_traveled);
                         }
+                        _ => {}
                     }
                 }
             }
@@ -188,10 +188,10 @@ fn d3p2(input: &WireHarness) -> usize {
                     x_cord += 1;
                     total_traveled += 1;
                     match first_wire_map.entry((x_cord, y_cord)) {
-                        Entry::Occupied(o) => {}
                         Entry::Vacant(o) => {
                             o.insert(total_traveled);
                         }
+                        _ => {}
                     }
                 }
             }
@@ -210,10 +210,10 @@ fn d3p2(input: &WireHarness) -> usize {
                     y_cord += 1;
                     total_traveled += 1;
                     match second_wire_map.entry((x_cord, y_cord)) {
-                        Entry::Occupied(o) => {}
                         Entry::Vacant(o) => {
                             o.insert(total_traveled);
                         }
+                        _ => {}
                     }
                 }
             }
@@ -222,10 +222,10 @@ fn d3p2(input: &WireHarness) -> usize {
                     y_cord -= 1;
                     total_traveled += 1;
                     match second_wire_map.entry((x_cord, y_cord)) {
-                        Entry::Occupied(o) => {}
                         Entry::Vacant(o) => {
                             o.insert(total_traveled);
                         }
+                        _ => {}
                     }
                 }
             }
@@ -234,10 +234,10 @@ fn d3p2(input: &WireHarness) -> usize {
                     x_cord -= 1;
                     total_traveled += 1;
                     match second_wire_map.entry((x_cord, y_cord)) {
-                        Entry::Occupied(o) => {}
                         Entry::Vacant(o) => {
                             o.insert(total_traveled);
                         }
+                        _ => {}
                     }
                 }
             }
@@ -246,10 +246,10 @@ fn d3p2(input: &WireHarness) -> usize {
                     x_cord += 1;
                     total_traveled += 1;
                     match second_wire_map.entry((x_cord, y_cord)) {
-                        Entry::Occupied(o) => {}
                         Entry::Vacant(o) => {
                             o.insert(total_traveled);
                         }
+                        _ => {}
                     }
                 }
             }
