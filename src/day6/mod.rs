@@ -219,6 +219,6 @@ mod tests {
         let orbits =
             process_input("COM)B\nB)C\nC)D\nD)E\nE)F\nB)G\nG)H\nD)I\nE)J\nJ)K\nK)L\nK)YOU\nI)SAN");
 
-        assert_eq!(d6p2(&orbits), 5);
+        assert_eq!(d6p2(&orbits), 4);
     }
 }
