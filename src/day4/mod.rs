@@ -15,6 +15,7 @@ impl Password {
         Password { start, end }
     }
 
+    #[allow(dead_code)]
     fn six_digits(input: usize) -> bool {
         if input < 999999 && input > 100000 {
             true
@@ -48,6 +49,7 @@ impl Password {
         string.chars().for_each(|x| {
             if string.matches(x).count() == 2 {
                 ret_val = true;
+                return;
             }
         });
 
@@ -77,6 +79,7 @@ impl Password {
         input.to_string().chars().for_each(|x| {
             if x.to_digit(10).unwrap() < last_digit {
                 always_increasing = false;
+                return;
             }
 
             last_digit = x.to_digit(10).unwrap();
@@ -98,8 +101,7 @@ fn process_input(input: &str) -> Password {
 fn d4p1(input: &Password) -> usize {
     let mut passwords = 0;
     for password in input.start..input.end {
-        if Password::six_digits(password)
-            && Password::increasing_numbers(password)
+        if Password::increasing_numbers(password)
             && Password::two_adjacent_numbers(password)
         {
             passwords += 1;
@@ -113,8 +115,7 @@ fn d4p1_iter(input: &Password) -> usize {
     (input.start..input.end)
         .into_par_iter()
         .filter(|x| {
-            Password::six_digits(*x)
-                && Password::increasing_numbers(*x)
+            Password::increasing_numbers(*x)
                 && Password::two_adjacent_numbers(*x)
         })
         .collect::<Vec<usize>>()
@@ -125,8 +126,7 @@ fn d4p1_iter(input: &Password) -> usize {
 fn d4p2(input: &Password) -> usize {
     let mut passwords = 0;
     for password in input.start..input.end {
-        if Password::six_digits(password)
-            && Password::increasing_numbers(password)
+        if Password::increasing_numbers(password)
             && Password::only_two_numbers(password)
         {
             passwords += 1;
@@ -140,8 +140,7 @@ fn d4p2_iter(input: &Password) -> usize {
     (input.start..input.end)
         .into_par_iter()
         .filter(|x| {
-            Password::six_digits(*x)
-                && Password::increasing_numbers(*x)
+           Password::increasing_numbers(*x)
                 && Password::only_two_numbers(*x)
         })
         .collect::<Vec<usize>>()
