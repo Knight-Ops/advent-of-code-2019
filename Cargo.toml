@@ -13,5 +13,5 @@ rayon = "1.2"
 
 [features]
 # Change the default flags to "debugging" and we compile in all of our debugging output
-default = []
+default = ["debugging"]
 debugging = []
