@@ -87,7 +87,7 @@ impl Password {
 
 #[aoc_generator(day4)]
 fn process_input(input: &str) -> Password {
-    let split: Vec<&str> = input.split("-").collect();
+    let split: Vec<&str> = input.trim().split("-").collect();
     Password::new(
         split[0].parse::<usize>().unwrap(),
         split[1].parse::<usize>().unwrap(),

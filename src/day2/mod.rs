@@ -9,10 +9,10 @@
 #[aoc(day2, part1)]
 fn d2p1(input: &str) -> usize {
     let mut memory: Vec<usize> = input
-            .trim()
-            .split(",")
-            .map(|x| x.parse::<usize>().unwrap())
-            .collect();
+        .trim()
+        .split(",")
+        .map(|x| x.parse::<usize>().unwrap())
+        .collect();
     let mut ip = 0;
     loop {
         let mut noun = memory[ip + 1];
@@ -96,7 +96,10 @@ fn d2p1_rewrite(input: &str) -> isize {
 #[aoc(day2, part2, rewrite)]
 fn d2p2_rewrite(input: &str) -> isize {
     use rayon::prelude::*;
-    use std::sync::{Arc, atomic::{Ordering, AtomicIsize}};
+    use std::sync::{
+        atomic::{AtomicIsize, Ordering},
+        Arc,
+    };
 
     let value = Arc::new(AtomicIsize::new(0));
 
@@ -105,8 +108,7 @@ fn d2p2_rewrite(input: &str) -> isize {
             let mut cpu = CPU::new(input);
             cpu.set_memory(1, x / 100);
             cpu.set_memory(2, x % 100);
-            if let Err(error) = cpu.run() {
-                
+            if let Err(_) = cpu.run() {
             } else {
                 if cpu.get_memory(0) == 19690720 {
                     value.store(x, Ordering::SeqCst)
@@ -114,14 +116,17 @@ fn d2p2_rewrite(input: &str) -> isize {
             }
         }
     });
-    
+
     value.load(Ordering::SeqCst) as isize
 }
 
 #[aoc(day2, part2, clone_cpu)]
 fn d2p2_clone_cpu(input: &str) -> isize {
     use rayon::prelude::*;
-    use std::sync::{Arc, atomic::{Ordering, AtomicIsize}};
+    use std::sync::{
+        atomic::{AtomicIsize, Ordering},
+        Arc,
+    };
 
     let value = Arc::new(AtomicIsize::new(0));
     let orig_cpu = CPU::new(input);
@@ -131,8 +136,7 @@ fn d2p2_clone_cpu(input: &str) -> isize {
             let mut cpu = orig_cpu.clone();
             cpu.set_memory(1, x / 100);
             cpu.set_memory(2, x % 100);
-            if let Err(error) = cpu.run() {
-                
+            if let Err(_) = cpu.run() {
             } else {
                 if cpu.get_memory(0) == 19690720 {
                     value.store(x, Ordering::SeqCst)
@@ -140,14 +144,17 @@ fn d2p2_clone_cpu(input: &str) -> isize {
             }
         }
     });
-    
+
     value.load(Ordering::SeqCst) as isize
 }
 
 #[aoc(day2, part2, double_iter)]
 fn d2p2_double_iter(input: &str) -> isize {
     use rayon::prelude::*;
-    use std::sync::{Arc, atomic::{Ordering, AtomicIsize}};
+    use std::sync::{
+        atomic::{AtomicIsize, Ordering},
+        Arc,
+    };
 
     let value = Arc::new(AtomicIsize::new(0));
     let orig_cpu = CPU::new(input);
@@ -158,17 +165,16 @@ fn d2p2_double_iter(input: &str) -> isize {
                 let mut cpu = orig_cpu.clone();
                 cpu.set_memory(1, x);
                 cpu.set_memory(2, y);
-                if let Err(error) = cpu.run() {
-                    
+                if let Err(_) = cpu.run() {
                 } else {
                     if cpu.get_memory(0) == 19690720 {
                         value.store(x * 100 + y, Ordering::SeqCst)
                     }
                 }
             }
-        })   
+        })
     });
-    
+
     value.load(Ordering::SeqCst) as isize
 }
 
@@ -182,6 +188,7 @@ mod tests {
     }
 }
 
+// ====================Day 5 Code=============================
 
 macro_rules! address_or_value {
     ($iter_name:ident, $cpu:ident, $expression:expr) => {
@@ -429,4 +436,3 @@ fn get_input() -> CpuResult<isize> {
         Ok(val) => return Ok(val),
     }
 }
-

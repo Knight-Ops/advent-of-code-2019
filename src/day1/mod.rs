@@ -7,22 +7,12 @@ fn process_input(input: &str) -> Vec<isize> {
 
 #[aoc(day1, part1, pure_iter)]
 fn d1p1(input: &Vec<isize>) -> isize {
-    input
-        .iter()
-        .map(|x| {
-            (x / 3) - 2
-        })
-        .sum()
+    input.iter().map(|x| (x / 3) - 2).sum()
 }
 
 #[aoc(day1, part1, rayon_iter)]
 fn d1p1_rayon(input: &Vec<isize>) -> isize {
-    input
-        .par_iter()
-        .map(|x| {
-            (x / 3) - 2
-        })
-        .sum()
+    input.par_iter().map(|x| (x / 3) - 2).sum()
 }
 
 #[aoc(day1, part2, pure_iter_2)]
@@ -34,7 +24,7 @@ fn d1p2(input: &Vec<isize>) -> isize {
         .map(|x| {
             let mut fuel = (x / 3) - 2;
             let mut total = fuel;
-            
+
             loop {
                 fuel = (fuel / 3) - 2;
 
@@ -45,7 +35,8 @@ fn d1p2(input: &Vec<isize>) -> isize {
                 }
             }
             total
-        }).sum()
+        })
+        .sum()
 }
 
 #[aoc(day1, part2, rayon_iter_2)]
@@ -55,7 +46,7 @@ fn d1p2_rayon(input: &Vec<isize>) -> isize {
         .map(|x| {
             let mut fuel = (x / 3) - 2;
             let mut total = fuel;
-            
+
             loop {
                 fuel = (fuel / 3) - 2;
 
@@ -66,7 +57,8 @@ fn d1p2_rayon(input: &Vec<isize>) -> isize {
                 }
             }
             total
-        }).sum()
+        })
+        .sum()
 }
 
 #[cfg(test)]

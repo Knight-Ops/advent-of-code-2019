@@ -32,6 +32,7 @@ impl CPU {
     pub fn new(program: &str) -> CPU {
         CPU {
             memory: program
+                .trim()
                 .split(",")
                 .map(|x| x.parse::<isize>().unwrap())
                 .collect(),
@@ -40,7 +41,8 @@ impl CPU {
         }
     }
 
-    pub fn run(&mut self) -> CpuResult<()> {
+    pub fn run(&mut self, input: Option<&str>) -> CpuResult<()> {
+        let mut user_input = input.unwrap_or("").trim().lines();
         loop {
             match self.parse()? {
                 Instruction::Add(left, right, location) => {
@@ -56,7 +58,17 @@ impl CPU {
                 Instruction::In(location) => {
                     debug_print!("In : @ {}", location);
                     self.last_instruction = Some(Instruction::In(location));
-                    self.set_memory(location as usize, get_input()?);
+                    self.set_memory(
+                        location as usize,
+                        if input.is_some() {
+                            match user_input.next() {
+                                Some(val) => val.trim().parse::<isize>().unwrap(),
+                                None => get_input()?,
+                            }
+                        } else {
+                            get_input()?
+                        },
+                    );
                 }
                 Instruction::Out(value) => {
                     debug_print!("Out : {}", value);
@@ -251,12 +263,19 @@ fn get_input() -> CpuResult<isize> {
 #[aoc(day5, part1)]
 fn d5p1(input: &str) -> isize {
     let mut cpu = CPU::new(input);
-    if let Err(error) = cpu.run() {
+    if let Err(error) = cpu.run(Some("1")) {
         println!("ERROR : {:?}", error);
-        0
-    } else {
-        cpu.get_memory(0)
     }
+    0
+}
+
+#[aoc(day5, part2)]
+fn d5p2(input: &str) -> isize {
+    let mut cpu = CPU::new(input);
+    if let Err(error) = cpu.run(Some("5")) {
+        println!("ERROR : {:?}", error);
+    }
+    0
 }
 
 #[cfg(test)]
