@@ -285,14 +285,14 @@ mod tests {
     #[test]
     fn test1() {
         let mut cpu = CPU::new("1002,4,3,4,33,99");
-        println!("{:?}", cpu.run());
+        println!("{:?}", cpu.run(None));
         assert_eq!(cpu.get_memory(4), 99);
     }
 
     #[test]
     fn test2() {
         let mut cpu = CPU::new("1101,100,-1,4,0");
-        println!("{:?}", cpu.run());
+        println!("{:?}", cpu.run(None));
         assert_eq!(cpu.get_memory(4), 99);
     }
 }
