@@ -1,16 +1,16 @@
-use std::collections::{HashMap, HashSet};
-use std::iter::FromIterator;
+use std::collections::{HashMap, HashSet, hash_map::Entry};
+use rayon::prelude::*;
 
 #[derive(Debug, Clone)]
 struct Planet<'a> {
-    id: &'a str,
+    id: usize,
     orbits: Option<&'a str>,
     orbiting_planets: Vec<&'a str>,
     indirect_orbits: usize,
 }
 
 impl<'a> Planet<'a> {
-    pub fn new(id: &'a str, orbits: Option<&'a str>) -> Planet<'a> {
+    pub fn new(id: usize, orbits: Option<&'a str>) -> Planet<'a> {
         Planet {
             id,
             orbits,
@@ -25,6 +25,10 @@ impl<'a> Planet<'a> {
 
     fn set_indirect_orbits(&mut self, value: usize) {
         self.indirect_orbits = value;
+    }
+
+    fn add_orbit(&mut self, orbit: Option<&'a str>) {
+        self.orbits = orbit;
     }
 
     // pub fn get_orbiting_planets(&self) -> Option<Vec<&str>> {
@@ -52,27 +56,54 @@ impl Orbit {
 #[derive(Debug, Clone)]
 struct Universe<'a> {
     planets: HashMap<&'a str, Planet<'a>>,
+    lanes : HashMap<usize, usize>,
 }
 
 impl<'a> Universe<'a> {
     pub fn new(input: &'a Vec<Orbit>) -> Universe<'a> {
         let mut universe = Universe {
             planets: HashMap::new(),
+            lanes: HashMap::new()
         };
 
-        universe.planets.insert("COM", Planet::new("COM", None));
+        let mut planet_id = 0;
+
+        universe.planets.insert("COM", Planet::new(planet_id, None));
+        planet_id += 1;
 
         input.iter().for_each(|x| {
-            universe
+            let mut satellite_id = 0;
+            let mut reference_id = 0;
+            match universe
                 .planets
-                .entry(&x.reference)
-                .or_insert(Planet::new(&x.reference, None))
-                .add_orbiting_planet(&x.satellite);
+                .entry(&x.reference) {
+                    Entry::Occupied(mut occupied) => {
+                        occupied.get_mut().add_orbiting_planet(&x.satellite);
+                        reference_id = occupied.get().id;
+                    },
+                    Entry::Vacant(vacant) => {
+                        vacant.insert(Planet::new(planet_id, None)).add_orbiting_planet(&x.satellite);
+                        reference_id = planet_id;
+                        planet_id += 1;
+                    },
+                };
 
-            universe
+            match universe
                 .planets
-                .entry(&x.satellite)
-                .or_insert(Planet::new(&x.satellite, Some(&x.reference)));
+                .entry(&x.satellite) {
+                    Entry::Occupied(mut occupied) => {
+                        occupied.get_mut().add_orbit(Some(&x.reference));
+                        satellite_id = occupied.get().id
+                    },
+                    Entry::Vacant(vacant) => {
+                        vacant.insert(Planet::new(planet_id, Some(&x.reference))).add_orbit(Some(&x.reference));
+                        satellite_id = planet_id;
+                        planet_id += 1;
+                    },
+                }
+
+                universe.lanes.insert(satellite_id, reference_id);
+
         });
 
         universe
@@ -103,9 +134,6 @@ impl<'a> Universe<'a> {
             .to_string();
         debug_print!("Starting planet is : {}", planet_name);
 
-        // We need to mark where we have been so we don't loop
-        // visited_planets.push(planet_name.clone());
-
         self.explore(planet_name, &visited_planets, end)
     }
 
@@ -126,7 +154,6 @@ impl<'a> Universe<'a> {
         });
 
         let planet = self.planets.get(planet_name.as_str()).unwrap();
-        // debug_print!("Got planet : {:#?}", planet);
         debug_print!(
             "Planet : {} - {:?} - {:?}",
             planet.id,
@@ -148,7 +175,7 @@ impl<'a> Universe<'a> {
         let mut visited_planets = visited_planets.to_vec();
         visited_planets.push(planet_name);
         let paths: Vec<_> = visit_locations
-            .iter()
+            .par_iter()
             .map(|x| self.explore(x.to_string(), &visited_planets, end.clone()))
             .filter(|x| x.is_some())
             .collect();
@@ -158,6 +185,63 @@ impl<'a> Universe<'a> {
         } else {
             paths[0].to_owned()
         }
+    }
+
+    fn intersect(&self, start: &str, end: &str) -> usize {
+        let from_start = self.traverse_to_center(start);
+        let from_end = self.traverse_to_center(end);
+
+        let intersection : Vec<_> = from_end.iter().filter(|x| from_start.contains(x)).collect();
+
+        let start_to_intersect : Vec<_> = from_start.iter().filter(|x| !intersection.contains(x)).collect();
+        let intersect_to_end : Vec<_> = from_end.iter().filter(|x| !intersection.contains(x)).collect();
+
+        debug_print!("Intersection : {:?}", intersection);
+        start_to_intersect.len() + intersect_to_end.len()
+    }
+
+    fn traverse_to_center(&self, from: &str) -> Vec<usize> {
+        let mut reference_id = self.planets.get(from).unwrap().id;
+        let mut path = vec![];
+        while reference_id != 0 {
+            reference_id = self.lanes[&reference_id];
+            path.push(reference_id);
+        }
+
+        path
+    }
+
+    fn intersect_hashmap(&self, start: &str, end: &str) -> usize {
+        let mut from_start = self.traverse_to_center_hashmap(start);
+        
+        let mut reference_id = self.planets.get(end).unwrap().id;
+        let mut path_len = 0;
+        while reference_id != 0 {
+            reference_id = self.lanes[&reference_id];
+            match from_start.entry(reference_id) {
+                Entry::Occupied(occupied) => {
+                    return *occupied.get() + path_len;
+                },
+                Entry::Vacant(_) => {
+                    path_len += 1;
+                }
+            }
+        }
+
+        unreachable!()
+    }
+
+    fn traverse_to_center_hashmap(&self, from: &str) -> HashMap<usize, usize> {
+        let mut hm = HashMap::new();
+        let mut reference_id = self.planets.get(from).unwrap().id;
+        let mut path_len = 0;
+        while reference_id != 0 {
+            reference_id = self.lanes[&reference_id];
+            hm.insert(reference_id, path_len);
+            path_len += 1;
+        }
+
+        hm
     }
 }
 
@@ -186,22 +270,31 @@ fn d6p1(input: &Vec<Orbit>) -> usize {
 
 #[aoc(day6, part2)]
 fn d6p2(input: &Vec<Orbit>) -> usize {
-    let direct_orbits = input.len();
-    debug_print!("Direct Orbits : {}", direct_orbits);
-
-    let mut universe = Universe::new(input);
-    universe.set_indirect_orbits("COM", 0);
+    debug_print!("Orbits : {:#?}", input);
+    let universe = Universe::new(input);
     debug_print!("Universe : {:#?}", universe);
-
-    let indirect_orbits: usize = universe
-        .planets
-        .iter()
-        .map(|(_id, planet)| planet.indirect_orbits)
-        .sum();
 
     let path = universe.find_path("YOU", "SAN");
 
     path.unwrap().len() - 3
+}
+
+#[aoc(day6, part2, intersect)]
+fn d6p2_intersect(input: &Vec<Orbit>) -> usize {
+    debug_print!("Orbits : {:#?}", input);
+    let universe = Universe::new(input);
+    debug_print!("Universe : {:#?}", universe);
+
+    universe.intersect("YOU", "SAN")
+}
+
+#[aoc(day6, part2, intersect_hashmap)]
+fn d6p2_intersect_hashmap(input: &Vec<Orbit>) -> usize {
+    debug_print!("Orbits : {:#?}", input);
+    let universe = Universe::new(input);
+    debug_print!("Universe : {:#?}", universe);
+
+    universe.intersect_hashmap("YOU", "SAN")
 }
 
 #[cfg(test)]
@@ -210,7 +303,7 @@ mod tests {
     #[test]
     fn test1() {
         let orbits = process_input("COM)B\nB)C\nC)D\nD)E\nE)F\nB)G\nG)H\nD)I\nE)J\nJ)K\nK)L");
-        //println!("{:#?}", orbits);
+
         assert_eq!(d6p1(&orbits), 42);
     }
 
