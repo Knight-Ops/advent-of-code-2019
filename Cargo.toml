@@ -14,5 +14,5 @@ itertools = "0.8"
 
 [features]
 # Change the default flags to "debugging" and we compile in all of our debugging output
-default = ["debugging"]
+default = []
 debugging = []

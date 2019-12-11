@@ -28,7 +28,6 @@ struct CPU {
     memory: Vec<isize>,
     instruction_pointer: usize,
     last_instruction: Option<Instruction>,
-    last_output: Option<usize>,
     output: Vec<usize>,
 }
 
@@ -42,7 +41,6 @@ impl CPU {
                 .collect(),
             instruction_pointer: 0,
             last_instruction: None,
-            last_output: None,
             output: vec![],
         }
     }
@@ -79,8 +77,9 @@ impl CPU {
                 Instruction::Out(value) => {
                     debug_print!("Out : {}", value);
                     self.last_instruction = Some(Instruction::Out(value));
-                    println!("{}", value as usize);
-                    self.last_output = Some(value as usize);
+                    self.output.push(value as usize);
+                    self.increment_ip()?;
+                    return Err(CpuError::OutputGenerated);
                 }
                 Instruction::JumpIfTrue(value, new_ip) => {
                     debug_print!("JIT : {} to {}", value, new_ip);
@@ -284,7 +283,7 @@ fn d7p1(input: &str) -> usize {
             loop {
                 match amp.run(vm_input) {
                     CpuResult::Ok(_) => {
-                        output = amp.last_output.unwrap();
+                        output = *amp.output.last().expect("No output provided by VM");
                         debug_print!("Completed : {}", output);
                         break;
                     }
@@ -293,6 +292,9 @@ fn d7p1(input: &str) -> usize {
                             let val = get_input().expect("Error while getting user input");
                             formatting = format!("{}", val);
                             vm_input = Some(formatting.as_str());
+                        }
+                        CpuError::OutputGenerated => {
+
                         }
                         _ => {
                             panic!(
@@ -318,38 +320,58 @@ fn d7p1(input: &str) -> usize {
 #[aoc(day7, part2)]
 fn d7p2(input: &str) -> usize {
     let orig_cpu = CPU::new(input);
-
-    let mut output = 0;
+    let orig_amps : Vec<CPU> = (0..5).map(|_| orig_cpu.clone()).collect();
     let mut max = 0;
     (5..10).permutations(5).for_each(|permutation| {
         debug_print!("Permutation : {:?}", permutation);
-        permutation.iter().for_each(|entry| {
-            let mut amp = orig_cpu.clone();
-            let mut formatting = format!("{}\n{}", entry, output);
-            let mut vm_input = Some(formatting.as_str());
-            loop {
-                match amp.run(vm_input) {
-                    CpuResult::Ok(_) => {
-                        output = amp.last_output.unwrap();
-                        debug_print!("Completed : {}", output);
+        let mut output = 0;
+        let mut list_iter = permutation.iter();
+        let mut amps = orig_amps.clone();
+        let mut active_amp = 0;
+        let mut first_pass = true;
+        let mut formatting = format!("{}\n{}", list_iter.next().expect("Permutation does not contain a single element"), output);
+        let mut vm_input = Some(formatting.as_str());
+        loop {
+            match amps[active_amp].run(vm_input) {
+                CpuResult::Ok(_) => {
+                    output = *amps[active_amp].output.last().expect("No output provided by VM");
+                    debug_print!("Completed : {}", output);
+                    if active_amp == orig_amps.len() - 1 {
                         break;
+                    } else {
+                        active_amp = (active_amp + 1) % orig_amps.len();
                     }
-                    CpuResult::Err(err) => match err {
-                        CpuError::InputRequired => {
-                            let val = get_input().expect("Error while getting user input");
-                            formatting = format!("{}", val);
+                }
+                CpuResult::Err(err) => match err {
+                    CpuError::InputRequired => {
+                        let val = get_input().expect("Error while getting user input");
+                        formatting = format!("{}", val);
+                        vm_input = Some(formatting.as_str());
+                    }
+                    CpuError::OutputGenerated => {
+                        output = *amps[active_amp].output.last().unwrap();
+                        active_amp = (active_amp + 1) % orig_amps.len();
+                        if active_amp == 0 && first_pass {
+                            first_pass = false;
+                        }
+
+                        if first_pass {
+                            formatting = format!("{}\n{}", list_iter.next().expect("Permutation does not have enough elements"), output);
+                            vm_input = Some(formatting.as_str());
+                        } else {
+                            formatting = format!("{}", output);
                             vm_input = Some(formatting.as_str());
                         }
-                        _ => {
-                            panic!(
-                                "Error while running through : {:?} - {:?}",
-                                permutation, err
-                            );
-                        }
-                    },
-                }
+                    }
+                    _ => {
+                        panic!(
+                            "Error while running through : {:?} - {:?}",
+                            permutation, err
+                        );
+                    }
+                },
             }
-        });
+        }
 
         if output > max {
             max = output;
