@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet, hash_map::Entry};
-use rayon::prelude::*;
 use itertools::Itertools;
+use rayon::prelude::*;
+use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 macro_rules! address_or_value {
     ($iter_name:ident, $cpu:ident, $expression:expr) => {
@@ -19,6 +19,8 @@ enum CpuError {
     InvalidOpcode(isize, usize),
     InvalidLastInstruction,
     InvalidUserInput,
+    InputRequired,
+    OutputGenerated,
 }
 
 #[derive(Debug, Clone)]
@@ -27,6 +29,7 @@ struct CPU {
     instruction_pointer: usize,
     last_instruction: Option<Instruction>,
     last_output: Option<usize>,
+    output: Vec<usize>,
 }
 
 impl CPU {
@@ -40,6 +43,7 @@ impl CPU {
             instruction_pointer: 0,
             last_instruction: None,
             last_output: None,
+            output: vec![],
         }
     }
 
@@ -65,10 +69,10 @@ impl CPU {
                         if input.is_some() {
                             match user_input.next() {
                                 Some(val) => val.trim().parse::<isize>().unwrap(),
-                                None => get_input()?,
+                                None => return Err(CpuError::InputRequired),
                             }
                         } else {
-                            get_input()?
+                            return Err(CpuError::InputRequired);
                         },
                     );
                 }
@@ -248,7 +252,7 @@ impl Instruction {
     }
 }
 
-fn get_input() -> CpuResult<isize> {
+fn get_input() -> Result<isize, &'static str> {
     use std::io;
 
     debug_print!("Getting input!");
@@ -256,45 +260,60 @@ fn get_input() -> CpuResult<isize> {
     let mut input = String::new();
 
     if let Err(_) = io::stdin().read_line(&mut input) {
-        return Err(CpuError::InvalidUserInput);
+        return Err("Invalid user input!");
     }
     let parse_input = input.trim().parse::<isize>();
     match parse_input {
-        Err(_) => return Err(CpuError::InvalidUserInput),
+        Err(_) => return Err("Error parsing user input!"),
         Ok(val) => return Ok(val),
     }
 }
 
-// #[aoc(day7, part1)]
-// fn d7p1(input: &str) -> usize {
-//     let orig_cpu = CPU::new(input);
+#[aoc(day7, part1)]
+fn d7p1(input: &str) -> usize {
+    let orig_cpu = CPU::new(input);
 
-//     let mut output = 0;
-//     let mut max = 0;
-//     (0..5).permutations(5).for_each(|permutation| {
-//         debug_print!("Permutation : {:?}", permutation);
-//         permutation.iter().for_each(|entry|{
-//             let mut amp = orig_cpu.clone();
-//             match amp.run(Some(&format!("{}\n{}", entry, output))) {
-//                 CpuResult::Ok(_) => {
-//                     output = amp.last_output.unwrap();
-//                 },
-//                 CpuResult::Err(err) => {
-//                     panic!("Error while running through : {:?} - {:?}", permutation, err);
-//                 }
-//             }
-            
-//         });
+    let mut output = 0;
+    let mut max = 0;
+    (0..5).permutations(5).for_each(|permutation| {
+        debug_print!("Permutation : {:?}", permutation);
+        permutation.iter().for_each(|entry| {
+            let mut amp = orig_cpu.clone();
+            let mut formatting = format!("{}\n{}", entry, output);
+            let mut vm_input = Some(formatting.as_str());
+            loop {
+                match amp.run(vm_input) {
+                    CpuResult::Ok(_) => {
+                        output = amp.last_output.unwrap();
+                        debug_print!("Completed : {}", output);
+                        break;
+                    }
+                    CpuResult::Err(err) => match err {
+                        CpuError::InputRequired => {
+                            let val = get_input().expect("Error while getting user input");
+                            formatting = format!("{}", val);
+                            vm_input = Some(formatting.as_str());
+                        }
+                        _ => {
+                            panic!(
+                                "Error while running through : {:?} - {:?}",
+                                permutation, err
+                            );
+                        }
+                    },
+                }
+            }
+        });
 
-//         if output > max {
-//             max = output;
-//         }
+        if output > max {
+            max = output;
+        }
 
-//         output = 0;
-//     });
+        output = 0;
+    });
 
-//    max
-// }
+    max
+}
 
 #[aoc(day7, part2)]
 fn d7p2(input: &str) -> usize {
@@ -304,23 +323,37 @@ fn d7p2(input: &str) -> usize {
     let mut max = 0;
     (5..10).permutations(5).for_each(|permutation| {
         debug_print!("Permutation : {:?}", permutation);
-        permutation.iter().for_each(|entry|{
+        permutation.iter().for_each(|entry| {
             let mut amp = orig_cpu.clone();
-            match amp.run(Some(&format!("{}\n{}", entry, output))) {
-                CpuResult::Ok(_) => {
-                    output = amp.last_output.unwrap();
-                },
-                CpuResult::Err(err) => {
-                    panic!("Error while running through : {:?} - {:?}", permutation, err);
+            let mut formatting = format!("{}\n{}", entry, output);
+            let mut vm_input = Some(formatting.as_str());
+            loop {
+                match amp.run(vm_input) {
+                    CpuResult::Ok(_) => {
+                        output = amp.last_output.unwrap();
+                        debug_print!("Completed : {}", output);
+                        break;
+                    }
+                    CpuResult::Err(err) => match err {
+                        CpuError::InputRequired => {
+                            let val = get_input().expect("Error while getting user input");
+                            formatting = format!("{}", val);
+                            vm_input = Some(formatting.as_str());
+                        }
+                        _ => {
+                            panic!(
+                                "Error while running through : {:?} - {:?}",
+                                permutation, err
+                            );
+                        }
+                    },
                 }
             }
-            
         });
 
         if output > max {
             max = output;
         }
-
     });
 
     max
@@ -331,12 +364,18 @@ mod tests {
     use super::*;
     #[test]
     fn test1() {
-        assert_eq!(d7p1(&"3,15,3,16,1002,16,10,16,1,16,15,15,4,15,99,0,0"), 43210)
+        assert_eq!(
+            d7p1(&"3,15,3,16,1002,16,10,16,1,16,15,15,4,15,99,0,0"),
+            43210
+        )
     }
 
     #[test]
     fn test2() {
-        assert_eq!(d7p1(&"3,23,3,24,1002,24,10,24,1002,23,-1,23,101,5,23,23,1,24,23,23,4,23,99,0,0"), 54321);
+        assert_eq!(
+            d7p1(&"3,23,3,24,1002,24,10,24,1002,23,-1,23,101,5,23,23,1,24,23,23,4,23,99,0,0"),
+            54321
+        );
     }
 
     #[test]
