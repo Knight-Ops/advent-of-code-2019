@@ -4,31 +4,67 @@ use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 macro_rules! address_or_value {
     ($iter_name:ident, $cpu:ident, $expression:expr) => {
-        if $iter_name.next() == Some('1') {
-            $cpu.get_memory($expression)
-        } else {
-            $cpu.get_value($expression)
+        match $iter_name.next() {
+            Some(val) => {
+                match val.to_digit(10).expect("Parameter mode is not a digit!") {
+                    0 => {
+                        //debug_print!("Position mode!");
+                        $cpu.get_value($expression)
+                    }
+                    1 => {
+                        //debug_print!("Immediate mode!");
+                        $cpu.get_memory($expression)
+                    }
+                    2 => {
+                        //debug_print!("Relative mode!");
+                        $cpu.get_relative($expression)
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            None => {
+                //debug_print!("Position mode!");
+                $cpu.get_value($expression)
+            }
         }
     };
 }
 
-type CpuResult<T> = std::result::Result<T, CpuError>;
+macro_rules! get_location {
+    ($iter_name:ident, $cpu:ident, $expression:expr) => {
+        match $iter_name.next() {
+            Some('2') => $cpu.get_memory($expression) + $cpu.relative_base,
+            _ => $cpu.get_memory($expression),
+        }
+    };
+}
+
+pub type CpuResult<T> = std::result::Result<T, CpuError>;
 
 #[derive(Debug, Clone, Copy)]
-enum CpuError {
+pub enum CpuError {
     InvalidOpcode(isize, usize),
     InvalidLastInstruction,
     InvalidUserInput,
+    InvalidOutputGenerated,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ExitReason {
+    Halt,
     InputRequired,
     OutputGenerated,
 }
 
 #[derive(Debug, Clone)]
-struct CPU {
+pub struct CPU {
     memory: Vec<isize>,
     instruction_pointer: usize,
+    relative_base: isize,
     last_instruction: Option<Instruction>,
-    output: Vec<usize>,
+    output: Vec<isize>,
+
+    exit_on_output: bool,
 }
 
 impl CPU {
@@ -40,12 +76,14 @@ impl CPU {
                 .map(|x| x.parse::<isize>().unwrap())
                 .collect(),
             instruction_pointer: 0,
+            relative_base: 0,
             last_instruction: None,
             output: vec![],
+            exit_on_output: false,
         }
     }
 
-    pub fn run(&mut self, input: Option<&str>) -> CpuResult<()> {
+    pub fn run(&mut self, input: Option<&str>) -> CpuResult<ExitReason> {
         let mut user_input = input.unwrap_or("").trim().lines();
         loop {
             match self.parse()? {
@@ -67,19 +105,21 @@ impl CPU {
                         if input.is_some() {
                             match user_input.next() {
                                 Some(val) => val.trim().parse::<isize>().unwrap(),
-                                None => return Err(CpuError::InputRequired),
+                                None => return Ok(ExitReason::InputRequired),
                             }
                         } else {
-                            return Err(CpuError::InputRequired);
+                            return Ok(ExitReason::InputRequired);
                         },
                     );
                 }
                 Instruction::Out(value) => {
                     debug_print!("Out : {}", value);
                     self.last_instruction = Some(Instruction::Out(value));
-                    self.output.push(value as usize);
-                    self.increment_ip()?;
-                    return Err(CpuError::OutputGenerated);
+                    self.output.push(value);
+                    if self.exit_on_output {
+                        self.increment_ip()?;
+                        return Ok(ExitReason::OutputGenerated);
+                    }
                 }
                 Instruction::JumpIfTrue(value, new_ip) => {
                     debug_print!("JIT : {} to {}", value, new_ip);
@@ -105,7 +145,7 @@ impl CPU {
                     }
                 }
                 Instruction::Equal(left, right, location) => {
-                    debug_print!("EQ : {} < {} @ {}", left, right, location);
+                    debug_print!("EQ : {} == {} @ {}", left, right, location);
                     self.last_instruction = Some(Instruction::Equal(left, right, location));
                     if left == right {
                         self.set_memory(location as usize, 1);
@@ -113,10 +153,15 @@ impl CPU {
                         self.set_memory(location as usize, 0);
                     }
                 }
+                Instruction::AdjustRelativeBase(value) => {
+                    debug_print!("AdjustRelBase : {} + {}", self.relative_base, value);
+                    self.last_instruction = Some(Instruction::AdjustRelativeBase(value));
+                    self.relative_base += value;
+                }
                 Instruction::Halt => {
                     debug_print!("Halt");
                     self.last_instruction = Some(Instruction::Halt);
-                    return Ok(());
+                    return Ok(ExitReason::Halt);
                 }
             }
             self.increment_ip()?;
@@ -160,6 +205,9 @@ impl CPU {
                 Instruction::Equal(_, _, _) => {
                     self.instruction_pointer += 4;
                 }
+                Instruction::AdjustRelativeBase(_) => {
+                    self.instruction_pointer += 2;
+                }
                 Instruction::Halt => {
                     self.instruction_pointer += 1;
                 }
@@ -180,8 +228,32 @@ impl CPU {
         self.get_memory(self.get_memory(address) as usize)
     }
 
+    fn get_relative(&self, address: usize) -> isize {
+        self.get_memory((self.relative_base + self.get_memory(address)) as usize)
+    }
+
     fn set_memory(&mut self, address: usize, value: isize) {
         self.memory[address] = value;
+    }
+
+    pub fn set_exit_on_output(&mut self) {
+        self.exit_on_output = true;
+    }
+
+    pub fn clear_exit_on_output(&mut self) {
+        self.exit_on_output = false;
+    }
+
+    pub fn set_memory_size(&mut self, size: usize) {
+        self.memory.resize(size, 0);
+    }
+
+    pub fn get_output(&self) -> Vec<isize> {
+        self.output.clone()
+    }
+
+    pub fn get_last_output(&self) -> Option<&isize> {
+        self.output.last()
     }
 }
 
@@ -195,6 +267,7 @@ enum Instruction {
     JumpIfFalse(isize, isize),
     LessThan(isize, isize, isize),
     Equal(isize, isize, isize),
+    AdjustRelativeBase(isize),
     Halt,
 }
 
@@ -207,14 +280,14 @@ impl Instruction {
             1 => Instruction::Add(
                 address_or_value!(flags_iter, cpu, cpu.instruction_pointer + 1),
                 address_or_value!(flags_iter, cpu, cpu.instruction_pointer + 2),
-                cpu.get_memory(cpu.instruction_pointer + 3),
+                get_location!(flags_iter, cpu, cpu.instruction_pointer + 3),
             ),
             2 => Instruction::Mult(
                 address_or_value!(flags_iter, cpu, cpu.instruction_pointer + 1),
                 address_or_value!(flags_iter, cpu, cpu.instruction_pointer + 2),
-                cpu.get_memory(cpu.instruction_pointer + 3),
+                get_location!(flags_iter, cpu, cpu.instruction_pointer + 3),
             ),
-            3 => Instruction::In(cpu.get_memory(cpu.instruction_pointer + 1)),
+            3 => Instruction::In(get_location!(flags_iter, cpu, cpu.instruction_pointer + 1)),
             4 => Instruction::Out(address_or_value!(
                 flags_iter,
                 cpu,
@@ -231,13 +304,18 @@ impl Instruction {
             7 => Instruction::LessThan(
                 address_or_value!(flags_iter, cpu, cpu.instruction_pointer + 1),
                 address_or_value!(flags_iter, cpu, cpu.instruction_pointer + 2),
-                cpu.get_memory(cpu.instruction_pointer + 3),
+                get_location!(flags_iter, cpu, cpu.instruction_pointer + 3),
             ),
             8 => Instruction::Equal(
                 address_or_value!(flags_iter, cpu, cpu.instruction_pointer + 1),
                 address_or_value!(flags_iter, cpu, cpu.instruction_pointer + 2),
-                cpu.get_memory(cpu.instruction_pointer + 3),
+                get_location!(flags_iter, cpu, cpu.instruction_pointer + 3),
             ),
+            9 => Instruction::AdjustRelativeBase(address_or_value!(
+                flags_iter,
+                cpu,
+                cpu.instruction_pointer + 1
+            )),
             99 => Instruction::Halt,
             _ => {
                 return Err(CpuError::InvalidOpcode(
@@ -248,183 +326,5 @@ impl Instruction {
         };
 
         Ok(instr)
-    }
-}
-
-fn get_input() -> Result<isize, &'static str> {
-    use std::io;
-
-    debug_print!("Getting input!");
-
-    let mut input = String::new();
-
-    if let Err(_) = io::stdin().read_line(&mut input) {
-        return Err("Invalid user input!");
-    }
-    let parse_input = input.trim().parse::<isize>();
-    match parse_input {
-        Err(_) => return Err("Error parsing user input!"),
-        Ok(val) => return Ok(val),
-    }
-}
-
-#[aoc(day7, part1)]
-fn d7p1(input: &str) -> usize {
-    let orig_cpu = CPU::new(input);
-
-    let mut output = 0;
-    let mut max = 0;
-    (0..5).permutations(5).for_each(|permutation| {
-        debug_print!("Permutation : {:?}", permutation);
-        permutation.iter().for_each(|entry| {
-            let mut amp = orig_cpu.clone();
-            let mut formatting = format!("{}\n{}", entry, output);
-            let mut vm_input = Some(formatting.as_str());
-            loop {
-                match amp.run(vm_input) {
-                    CpuResult::Ok(_) => {
-                        output = *amp.output.last().expect("No output provided by VM");
-                        debug_print!("Completed : {}", output);
-                        break;
-                    }
-                    CpuResult::Err(err) => match err {
-                        CpuError::InputRequired => {
-                            let val = get_input().expect("Error while getting user input");
-                            formatting = format!("{}", val);
-                            vm_input = Some(formatting.as_str());
-                        }
-                        CpuError::OutputGenerated => {}
-                        _ => {
-                            panic!(
-                                "Error while running through : {:?} - {:?}",
-                                permutation, err
-                            );
-                        }
-                    },
-                }
-            }
-        });
-
-        if output > max {
-            max = output;
-        }
-
-        output = 0;
-    });
-
-    max
-}
-
-#[aoc(day7, part2)]
-fn d7p2(input: &str) -> usize {
-    let orig_cpu = CPU::new(input);
-    let orig_amps: Vec<CPU> = (0..5).map(|_| orig_cpu.clone()).collect();
-    let mut max = 0;
-    (5..10).permutations(5).for_each(|permutation| {
-        debug_print!("Permutation : {:?}", permutation);
-        let mut output = 0;
-        let mut list_iter = permutation.iter();
-        let mut amps = orig_amps.clone();
-        let mut active_amp = 0;
-        let mut first_pass = true;
-        let mut formatting = format!(
-            "{}\n{}",
-            list_iter
-                .next()
-                .expect("Permutation does not contain a single element"),
-            output
-        );
-        let mut vm_input = Some(formatting.as_str());
-        loop {
-            match amps[active_amp].run(vm_input) {
-                CpuResult::Ok(_) => {
-                    output = *amps[active_amp]
-                        .output
-                        .last()
-                        .expect("No output provided by VM");
-                    debug_print!("Completed : {}", output);
-                    if active_amp == orig_amps.len() - 1 {
-                        break;
-                    } else {
-                        active_amp = (active_amp + 1) % orig_amps.len();
-                    }
-                }
-                CpuResult::Err(err) => match err {
-                    CpuError::InputRequired => {
-                        let val = get_input().expect("Error while getting user input");
-                        formatting = format!("{}", val);
-                        vm_input = Some(formatting.as_str());
-                    }
-                    CpuError::OutputGenerated => {
-                        output = *amps[active_amp].output.last().unwrap();
-                        active_amp = (active_amp + 1) % orig_amps.len();
-                        if active_amp == 0 && first_pass {
-                            first_pass = false;
-                        }
-
-                        if first_pass {
-                            formatting = format!(
-                                "{}\n{}",
-                                list_iter
-                                    .next()
-                                    .expect("Permutation does not have enough elements"),
-                                output
-                            );
-                            vm_input = Some(formatting.as_str());
-                        } else {
-                            formatting = format!("{}", output);
-                            vm_input = Some(formatting.as_str());
-                        }
-                    }
-                    _ => {
-                        panic!(
-                            "Error while running through : {:?} - {:?}",
-                            permutation, err
-                        );
-                    }
-                },
-            }
-        }
-
-        if output > max {
-            max = output;
-        }
-    });
-
-    max
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test1() {
-        assert_eq!(
-            d7p1(&"3,15,3,16,1002,16,10,16,1,16,15,15,4,15,99,0,0"),
-            43210
-        )
-    }
-
-    #[test]
-    fn test2() {
-        assert_eq!(
-            d7p1(&"3,23,3,24,1002,24,10,24,1002,23,-1,23,101,5,23,23,1,24,23,23,4,23,99,0,0"),
-            54321
-        );
-    }
-
-    #[test]
-    fn test3() {
-        assert_eq!(d7p1(&"3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0"), 65210);
-    }
-
-    #[test]
-    fn test4() {
-        assert_eq!(d7p2(&"3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5"), 139629729);
-    }
-
-    #[test]
-    fn test5() {
-        assert_eq!(d7p2(&"3,52,1001,52,-5,52,3,53,1,52,56,54,1007,54,5,55,1005,55,26,1001,54,-5,54,1105,1,12,1,53,54,53,1008,54,0,55,1001,55,1,55,2,53,55,53,4,53,1001,56,-1,56,1005,56,6,99,0,0,0,0,10"), 18216);
     }
 }
