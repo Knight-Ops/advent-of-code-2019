@@ -232,7 +232,7 @@ impl CPU {
         self.get_memory((self.relative_base + self.get_memory(address)) as usize)
     }
 
-    fn set_memory(&mut self, address: usize, value: isize) {
+    pub fn set_memory(&mut self, address: usize, value: isize) {
         self.memory[address] = value;
     }
 
